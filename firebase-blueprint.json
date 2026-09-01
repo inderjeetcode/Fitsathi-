@@ -1,0 +1,199 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile with biometrics and daily health targets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "full_name": { "type": "string", "maxLength": 128 },
+        "age": { "type": "number" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "height_cm": { "type": "number" },
+        "weight_kg": { "type": "number" },
+        "target_weight_kg": { "type": "number" },
+        "fitness_goal": { "type": "string" },
+        "activity_level": { "type": "string" },
+        "food_preference": { "type": "string" },
+        "diet_preference": { "type": "string" },
+        "allergies": { "type": "array" },
+        "daily_calories_target": { "type": "number" },
+        "daily_protein_target": { "type": "number" },
+        "daily_protein_target_g": { "type": "number" },
+        "daily_carbs_target": { "type": "number" },
+        "daily_carbs_target_g": { "type": "number" },
+        "daily_fat_target": { "type": "number" },
+        "daily_fat_target_g": { "type": "number" },
+        "daily_water_glasses": { "type": "number" },
+        "daily_step_goal": { "type": "number" },
+        "daily_sleep_hours": { "type": "number" },
+        "onboarding_completed": { "type": "boolean" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "email", "full_name"]
+    },
+    "FoodLog": {
+      "title": "FoodLog",
+      "description": "Logged food entry with calculated macronutrients",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "food_id": { "type": "string", "maxLength": 128 },
+        "food_name": { "type": "string", "maxLength": 128 },
+        "meal_type": { "type": "string" },
+        "quantity": { "type": "number" },
+        "serving_unit": { "type": "string", "maxLength": 64 },
+        "calories": { "type": "number" },
+        "protein_g": { "type": "number" },
+        "carbs_g": { "type": "number" },
+        "fat_g": { "type": "number" },
+        "fiber_g": { "type": "number" },
+        "log_date": { "type": "string", "maxLength": 32 },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "food_name", "meal_type", "calories", "log_date"]
+    },
+    "CustomFood": {
+      "title": "CustomFood",
+      "description": "User created custom food item recipe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "hindi_name": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string" },
+        "serving_size": { "type": "number" },
+        "serving_unit": { "type": "string", "maxLength": 64 },
+        "calories": { "type": "number" },
+        "protein_g": { "type": "number" },
+        "carbs_g": { "type": "number" },
+        "fat_g": { "type": "number" },
+        "fiber_g": { "type": "number" },
+        "is_custom": { "type": "boolean" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "name", "calories", "protein_g", "carbs_g", "fat_g"]
+    },
+    "WaterLog": {
+      "title": "WaterLog",
+      "description": "Hydration log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "amount_ml": { "type": "number" },
+        "glasses": { "type": "number" },
+        "log_date": { "type": "string", "maxLength": 32 },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "amount_ml", "log_date"]
+    },
+    "SleepLog": {
+      "title": "SleepLog",
+      "description": "Sleep session tracking log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "bed_time": { "type": "string", "maxLength": 16 },
+        "wake_time": { "type": "string", "maxLength": 16 },
+        "duration_minutes": { "type": "number" },
+        "quality_rating": { "type": "number" },
+        "quality_score": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "log_date": { "type": "string", "maxLength": 32 },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "bed_time", "wake_time", "duration_minutes", "log_date"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Daily steps, active minutes, and calorie burn log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "steps": { "type": "number" },
+        "active_minutes": { "type": "number" },
+        "calories_burned": { "type": "number" },
+        "activity_type": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "log_date": { "type": "string", "maxLength": 32 },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "steps", "log_date"]
+    },
+    "WeightLog": {
+      "title": "WeightLog",
+      "description": "Weight measurement entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "weight_kg": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "log_date": { "type": "string", "maxLength": 32 },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "weight_kg", "log_date"]
+    },
+    "DietPlan": {
+      "title": "DietPlan",
+      "description": "Saved structured nutrition meal plan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 500 },
+        "goal": { "type": "string" },
+        "target_calories": { "type": "number" },
+        "target_protein_g": { "type": "number" },
+        "target_carbs_g": { "type": "number" },
+        "target_fat_g": { "type": "number" },
+        "budget": { "type": "number" },
+        "meals": { "type": "array" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "name", "target_calories"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "Profile",
+      "description": "User profile documents keyed by userId"
+    },
+    "/food_logs/{logId}": {
+      "schema": "FoodLog",
+      "description": "Food consumption logs for each user"
+    },
+    "/custom_foods/{foodId}": {
+      "schema": "CustomFood",
+      "description": "Custom food recipes created by users"
+    },
+    "/water_logs/{waterId}": {
+      "schema": "WaterLog",
+      "description": "Daily water hydration logs"
+    },
+    "/sleep_logs/{sleepId}": {
+      "schema": "SleepLog",
+      "description": "Sleep logs tracking duration and quality"
+    },
+    "/activity_logs/{activityId}": {
+      "schema": "ActivityLog",
+      "description": "Physical activities and steps logs"
+    },
+    "/weight_logs/{weightId}": {
+      "schema": "WeightLog",
+      "description": "Weight measurement history"
+    },
+    "/diet_plans/{planId}": {
+      "schema": "DietPlan",
+      "description": "Customized diet plans"
+    }
+  }
+}

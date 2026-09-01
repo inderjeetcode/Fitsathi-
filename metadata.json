@@ -1,0 +1,6 @@
+{
+  "name": "FitSathi",
+  "description": "Mobile-first personal health, nutrition, activity, sleep, water, weight and diet tracking web application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

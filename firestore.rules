@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidProfile(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.email is string && data.email.size() <= 256 &&
+             data.full_name is string && data.full_name.size() <= 128;
+    }
+
+    function isValidFoodLog(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.food_name is string && data.food_name.size() <= 128 &&
+             data.meal_type is string &&
+             data.calories is number && data.calories >= 0 &&
+             data.log_date is string && data.log_date.size() <= 32;
+    }
+
+    function isValidCustomFood(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.name is string && data.name.size() <= 128 &&
+             data.calories is number && data.calories >= 0;
+    }
+
+    function isValidWaterLog(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.amount_ml is number && data.amount_ml >= 0 &&
+             data.log_date is string && data.log_date.size() <= 32;
+    }
+
+    function isValidSleepLog(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.duration_minutes is number && data.duration_minutes >= 0 &&
+             data.log_date is string && data.log_date.size() <= 32;
+    }
+
+    function isValidActivityLog(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.steps is number && data.steps >= 0 &&
+             data.log_date is string && data.log_date.size() <= 32;
+    }
+
+    function isValidWeightLog(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.weight_kg is number && data.weight_kg > 0 &&
+             data.log_date is string && data.log_date.size() <= 32;
+    }
+
+    function isValidDietPlan(data) {
+      return data.user_id is string && data.user_id == request.auth.uid &&
+             data.name is string && data.name.size() <= 128 &&
+             data.target_calories is number && data.target_calories >= 0;
+    }
+
+    // PROFILES
+    match /profiles/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Block blanket listing of profiles
+      allow create: if isOwner(userId) && isValidProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidProfile(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    // FOOD LOGS
+    match /food_logs/{logId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidFoodLog(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidFoodLog(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // CUSTOM FOODS
+    match /custom_foods/{foodId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidCustomFood(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidCustomFood(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // WATER LOGS
+    match /water_logs/{waterId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidWaterLog(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidWaterLog(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // SLEEP LOGS
+    match /sleep_logs/{sleepId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidSleepLog(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidSleepLog(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // ACTIVITY LOGS
+    match /activity_logs/{activityId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidActivityLog(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidActivityLog(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // WEIGHT LOGS
+    match /weight_logs/{weightId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidWeightLog(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidWeightLog(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // DIET PLANS
+    match /diet_plans/{planId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidDietPlan(request.resource.data);
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && isValidDietPlan(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // CONNECTION TEST
+    match /test/connection {
+      allow get: if true;
+    }
+  }
+}
