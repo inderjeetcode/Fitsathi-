@@ -13,6 +13,11 @@ export async function syncHealthData(userId: string): Promise<void> {
       if (error) throw error;
     };
 
+    // Health data is pushed from the local-first app. We intentionally do not
+    // hydrate localStorage from cloud rows here because several legacy localDb
+    // save methods append records; blindly pulling every 30 seconds would create
+    // duplicates. A dedicated reconciliation layer should be added before enabling
+    // bidirectional health pulls.
     await push('food_logs', localDb.getFoodLogs(userId));
     await push('water_logs', localDb.getWaterLogs(userId));
     await push('sleep_logs', localDb.getSleepLogs(userId));
@@ -20,23 +25,6 @@ export async function syncHealthData(userId: string): Promise<void> {
     await push('weight_logs', localDb.getWeightLogs(userId));
     await push('custom_foods', localDb.getCustomFoods(userId));
     await push('diet_plans', localDb.getDietPlans(userId));
-
-    // Pulling is deliberately conservative: only hydrate local records owned by this user.
-    const tables = ['food_logs','water_logs','sleep_logs','activity_logs','weight_logs','custom_foods','diet_plans'];
-    for (const table of tables) {
-      const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
-      if (error) throw error;
-      if (!data) continue;
-      for (const row of data) {
-        if (table === 'food_logs') localDb.saveFoodLog(row);
-        else if (table === 'water_logs') localDb.saveWaterLog(row);
-        else if (table === 'sleep_logs') localDb.saveSleepLog(row);
-        else if (table === 'activity_logs') localDb.saveActivityLog(row);
-        else if (table === 'weight_logs') localDb.saveWeightLog(row);
-        else if (table === 'custom_foods') localDb.saveCustomFood(row);
-        else if (table === 'diet_plans') localDb.saveDietPlan(row);
-      }
-    }
   } catch (error) {
     console.warn('[FitSathi] Health cloud sync deferred:', error);
   } finally {
