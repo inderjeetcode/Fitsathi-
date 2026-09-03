@@ -2,6 +2,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { localDb } from '../lib/supabase';
 import { SleepLog } from '../types';
+import { healthSyncService } from './cloud/healthSync.service';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
@@ -52,6 +53,7 @@ export const sleepService = {
     }
 
     localDb.saveSleepLog(newLog);
+    healthSyncService.triggerBackgroundSync();
     return newLog;
   },
 
@@ -85,5 +87,6 @@ export const sleepService = {
       }
     }
     localDb.deleteSleepLog(id, userId);
+    healthSyncService.triggerBackgroundSync();
   }
 };

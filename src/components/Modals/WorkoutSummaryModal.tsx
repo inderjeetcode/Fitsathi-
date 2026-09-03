@@ -20,6 +20,7 @@ interface WorkoutSummaryModalProps {
   isOpen: boolean;
   session: WorkoutSessionLog | null;
   newPRs?: PersonalRecord[];
+  isSaving?: boolean;
   onFinish: (notes: string, rating: string) => void;
 }
 
@@ -27,10 +28,19 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   isOpen,
   session,
   newPRs = [],
+  isSaving = false,
   onFinish
 }) => {
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState('Great');
+
+  // Sync initial notes and feeling when session opens
+  useEffect(() => {
+    if (session) {
+      setNotes(session.notes || '');
+      setRating(session.feeling || session.session_feeling || 'Great');
+    }
+  }, [session, isOpen]);
 
   // Trigger confetti burst on open
   useEffect(() => {
@@ -266,10 +276,13 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
         <div className="pt-2">
           <button
             id="btn-save-summary-finish"
-            onClick={() => onFinish(notes, rating)}
-            className="w-full py-3.5 px-6 rounded-2xl bg-[#CCFF00] hover:bg-[#b3e600] text-[#0A0A0B] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(204,255,0,0.35)] transition-all active:scale-98"
+            disabled={isSaving}
+            onClick={() => !isSaving && onFinish(notes, rating)}
+            className={`w-full py-3.5 px-6 rounded-2xl bg-[#CCFF00] hover:bg-[#b3e600] text-[#0A0A0B] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(204,255,0,0.35)] transition-all active:scale-98 ${
+              isSaving ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
           >
-            <span>Save & Complete Workout</span>
+            <span>{isSaving ? 'Saving & Completing...' : 'Save & Complete Workout'}</span>
             <ArrowRight className="w-4 h-4 stroke-[3]" />
           </button>
         </div>

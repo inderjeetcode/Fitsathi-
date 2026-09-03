@@ -170,6 +170,21 @@ async function runWorkoutServiceTests() {
   assert(history.length === 1, 'Workout history contains 1 completed session');
   assert(history[0].id === completionResult.session.id, 'History item matches completed session');
 
+  // Test 13b: Update Workout Session (Notes & Rating/Feeling)
+  console.log('\nTest 13b: Update Workout Session (Notes & Feeling/Rating)');
+  const updatedSession = await workoutService.updateWorkoutSession(completionResult.session.id, TEST_USER, {
+    notes: 'Updated note from summary modal',
+    feeling: 'Crushed It',
+    session_feeling: 'Crushed It'
+  });
+  assert(updatedSession !== null, 'Updated session returned');
+  assert(updatedSession?.notes === 'Updated note from summary modal', 'Updated notes persisted');
+  assert(updatedSession?.feeling === 'Crushed It', 'Updated feeling persisted');
+
+  const reloadedSession = await workoutService.getWorkoutSessionById(completionResult.session.id, TEST_USER);
+  assert(reloadedSession?.notes === 'Updated note from summary modal', 'Reloaded session reflects updated note');
+  assert(reloadedSession?.feeling === 'Crushed It', 'Reloaded session reflects updated feeling');
+
   const prevPerfAfter = await workoutService.getPreviousExercisePerformance(TEST_USER, 'barbell_bench_press');
   assert(prevPerfAfter !== null && prevPerfAfter.length === 3, 'Previous exercise sets returned as ghost data');
 

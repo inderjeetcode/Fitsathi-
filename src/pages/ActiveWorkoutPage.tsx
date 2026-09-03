@@ -88,6 +88,8 @@ export const ActiveWorkoutPage: React.FC<ActiveWorkoutPageProps> = ({
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [completedSessionData, setCompletedSessionData] = useState<WorkoutSessionLog | null>(null);
   const [newPRsAchieved, setNewPRsAchieved] = useState<PersonalRecord[]>([]);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isSavingSummary, setIsSavingSummary] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -331,14 +333,26 @@ export const ActiveWorkoutPage: React.FC<ActiveWorkoutPageProps> = ({
 
   // Finish Workout Action
   const handleFinishWorkoutClick = async () => {
+    if (isCompleting) return;
+
+    // If session was already completed and summary was closed/re-opened, just show the modal
+    if (completedSessionData) {
+      setIsSummaryModalOpen(true);
+      return;
+    }
+
     if (!activeWorkout) return;
 
     if (metrics.completedSets === 0) {
-      if (!confirm('You haven’t checked off any completed sets yet. Do you still want to finish and log this workout?')) {
+      const confirmed = window.confirm(
+        'You haven’t checked off any completed sets yet. Do you still want to finish and log this workout?'
+      );
+      if (!confirmed) {
         return;
       }
     }
 
+    setIsCompleting(true);
     try {
       const result = await workoutService.completeWorkout(user.id, activeWorkout, sessionNotes);
       setCompletedSessionData(result.session);
@@ -346,14 +360,38 @@ export const ActiveWorkoutPage: React.FC<ActiveWorkoutPageProps> = ({
       setIsSummaryModalOpen(true);
     } catch (err) {
       console.error('Failed to complete workout', err);
-      showToast('Error completing workout.');
+      showToast('Error completing workout. Your active workout has been preserved.');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
-  // Confirm Summary Modal & Return
-  const handleSummarySaved = () => {
-    setIsSummaryModalOpen(false);
-    onFinishWorkout();
+  // Confirm Summary Modal & Return with Notes and Rating persisted
+  const handleSummarySaved = async (notes: string, rating: string) => {
+    if (isSavingSummary) return;
+
+    setIsSavingSummary(true);
+    try {
+      if (completedSessionData) {
+        const finalNotes = notes !== undefined && notes !== null && notes.trim() !== '' 
+          ? notes.trim() 
+          : (completedSessionData.notes || '');
+
+        await workoutService.updateWorkoutSession(completedSessionData.id, user.id, {
+          notes: finalNotes,
+          feeling: rating,
+          session_feeling: rating
+        });
+      }
+      setIsSummaryModalOpen(false);
+      onFinishWorkout();
+    } catch (err) {
+      console.error('Failed to save workout summary', err);
+      setIsSummaryModalOpen(false);
+      onFinishWorkout();
+    } finally {
+      setIsSavingSummary(false);
+    }
   };
 
   // Confirm Discard Action
@@ -435,11 +473,14 @@ export const ActiveWorkoutPage: React.FC<ActiveWorkoutPageProps> = ({
 
             <button
               id="btn-workout-finish-top"
+              disabled={isCompleting}
               onClick={handleFinishWorkoutClick}
-              className="px-5 py-2.5 rounded-xl bg-[#CCFF00] hover:bg-[#b3e600] text-[#0A0A0B] text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_20px_rgba(204,255,0,0.3)] transition-all active:scale-95 min-h-[44px]"
+              className={`px-5 py-2.5 rounded-xl bg-[#CCFF00] hover:bg-[#b3e600] text-[#0A0A0B] text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_20px_rgba(204,255,0,0.3)] transition-all active:scale-95 min-h-[44px] ${
+                isCompleting ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
               <Check className="w-4 h-4 stroke-[3]" />
-              Finish Workout
+              {isCompleting ? 'Finishing...' : 'Finish Workout'}
             </button>
           </div>
         </div>
@@ -816,11 +857,14 @@ export const ActiveWorkoutPage: React.FC<ActiveWorkoutPageProps> = ({
 
             <button
               id="btn-bottom-finish-workout"
+              disabled={isCompleting}
               onClick={handleFinishWorkoutClick}
-              className="px-6 py-3.5 rounded-2xl bg-[#CCFF00] hover:bg-[#b3e600] text-[#0A0A0B] font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.3)] transition-all active:scale-95"
+              className={`px-6 py-3.5 rounded-2xl bg-[#CCFF00] hover:bg-[#b3e600] text-[#0A0A0B] font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.3)] transition-all active:scale-95 ${
+                isCompleting ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
               <Check className="w-4 h-4 stroke-[3]" />
-              <span>Complete Workout</span>
+              <span>{isCompleting ? 'Completing...' : 'Complete Workout'}</span>
             </button>
           </div>
         </div>
@@ -855,6 +899,7 @@ export const ActiveWorkoutPage: React.FC<ActiveWorkoutPageProps> = ({
         isOpen={isSummaryModalOpen}
         session={completedSessionData}
         newPRs={newPRsAchieved}
+        isSaving={isSavingSummary}
         onFinish={handleSummarySaved}
       />
     </div>

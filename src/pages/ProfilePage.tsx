@@ -8,26 +8,58 @@ interface ProfilePageProps {
   onProfileUpdated: (updated: UserProfile) => void;
 }
 
+const defaultUserProfile: UserProfile = {
+  id: 'temp-user',
+  email: '',
+  full_name: 'Fitness Enthusiast',
+  fitness_goal: 'general_fitness',
+  gender: 'male',
+  age: 27,
+  height_cm: 175,
+  weight_kg: 78.5,
+  target_weight_kg: 70,
+  activity_level: 'moderately_active',
+  food_preference: 'vegetarian',
+  diet_preference: 'vegetarian',
+  daily_calories_target: 2200,
+  daily_protein_target: 120,
+  daily_carbs_target: 250,
+  daily_fat_target: 65,
+  daily_water_glasses: 8,
+  daily_sleep_hours: 8,
+  daily_step_goal: 10000,
+  onboarding_completed: true,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
+};
+
 export const ProfilePage: React.FC<ProfilePageProps> = ({
   user,
   onProfileUpdated
 }) => {
-  const [formData, setFormData] = useState<UserProfile>(user);
+  const [formData, setFormData] = useState<UserProfile>(user || defaultUserProfile);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  React.useEffect(() => {
+    if (user) {
+      setFormData(user);
+    }
+  }, [user]);
 
   const handleChange = (field: keyof UserProfile, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAutoCalculate = () => {
+    const current = formData || defaultUserProfile;
     const suggested = profileService.calculateTargets(
-      formData.weight_kg,
-      formData.height_cm,
-      formData.age,
-      formData.gender,
-      formData.activity_level,
-      formData.fitness_goal
+      current.weight_kg || 78.5,
+      current.height_cm || 175,
+      current.age || 27,
+      current.gender || 'male',
+      current.activity_level || 'moderately_active',
+      current.fitness_goal || 'general_fitness'
     );
 
     setFormData(prev => ({

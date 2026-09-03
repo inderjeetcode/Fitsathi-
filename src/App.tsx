@@ -330,7 +330,7 @@ export default function App() {
               onFinishWorkout={() => {
                 refreshUserData();
                 checkActiveWorkout();
-                setActiveTab('workout');
+                setActiveTab('workout_history');
               }}
               onMinimize={() => {
                 checkActiveWorkout();

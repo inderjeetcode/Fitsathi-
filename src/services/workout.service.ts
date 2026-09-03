@@ -1,4 +1,5 @@
 import { localDb } from '../lib/supabase';
+import { workoutSyncService } from './cloud/workoutSync.service';
 import {
   Exercise,
   ExerciseCategory,
@@ -96,6 +97,7 @@ export const workoutService = {
     };
 
     localDb.saveWorkoutRoutine(routine);
+    workoutSyncService.triggerBackgroundSync();
     return routine;
   },
 
@@ -120,6 +122,7 @@ export const workoutService = {
     };
 
     localDb.saveWorkoutRoutine(updated);
+    workoutSyncService.triggerBackgroundSync();
     return updated;
   },
 
@@ -128,6 +131,7 @@ export const workoutService = {
    */
   async deleteRoutine(id: string, userId: string): Promise<void> {
     localDb.deleteWorkoutRoutine(id, userId);
+    workoutSyncService.triggerBackgroundSync();
   },
 
   /**
@@ -715,6 +719,13 @@ export const workoutService = {
     session: WorkoutSessionLog;
     updatedPRs: PersonalRecord[];
   }> {
+    if (!userId) {
+      throw new Error('User ID is required to complete workout.');
+    }
+    if (!activeWorkout || !Array.isArray(activeWorkout.exercises)) {
+      throw new Error('Invalid active workout state provided for completion.');
+    }
+
     const now = new Date();
     const today = getTodayDate();
     const summary = this.calculateWorkoutSummary(activeWorkout, now);
@@ -722,11 +733,23 @@ export const workoutService = {
     // Check PRs on all completed sets before finalizing
     const existingPRs = await this.getPersonalRecords(userId);
     let sessionPRCount = 0;
+    const newlyAchievedPRs: PersonalRecord[] = [];
 
     const finalizedExercises: RoutineExercise[] = activeWorkout.exercises.map((ex) => ({
       ...ex,
       sets: ex.sets.map((set) => {
-        if (!set.completed) return set;
+        if (!set.completed) {
+          const w = set.actualWeightKg ?? set.targetWeightKg;
+          const r = set.actualReps ?? set.targetReps;
+          const est = w && r ? calculateEstimated1RM(w, r) : undefined;
+          return {
+            ...set,
+            actualWeightKg: w,
+            actualReps: r,
+            estimated1RM: est
+          };
+        }
+
         const weight = set.actualWeightKg ?? set.targetWeightKg ?? 0;
         const reps = set.actualReps ?? set.targetReps ?? 0;
         const est1RM = calculateEstimated1RM(weight, reps);
@@ -739,7 +762,18 @@ export const workoutService = {
             return weight > existing.best_weight_kg || est1RM > existing.best_estimated_1rm;
           })();
 
-        if (isPR) sessionPRCount++;
+        if (isPR) {
+          sessionPRCount++;
+          newlyAchievedPRs.push({
+            user_id: userId,
+            exercise_id: ex.exerciseId,
+            exercise_name: ex.exerciseName,
+            best_weight_kg: weight,
+            best_reps: reps,
+            best_estimated_1rm: est1RM,
+            achieved_date: today
+          });
+        }
 
         return {
           ...set,
@@ -751,7 +785,7 @@ export const workoutService = {
       })
     }));
 
-    // Estimate calories burned based on duration and volume (approx ~6-8 kcal per min of moderate-high resistance training)
+    // Estimate calories burned based on duration and volume (~7.5 kcal per min of resistance training)
     const estimatedCalories = Math.round(summary.durationMinutes * 7.5);
 
     const session: WorkoutSessionLog = {
@@ -773,19 +807,53 @@ export const workoutService = {
       created_at: now.toISOString()
     };
 
-    // Save session to history
+    // 1. Save session to history first
     localDb.saveWorkoutSession(session);
 
-    // Update PRs
-    const updatedPRs = await this.updatePersonalRecordsFromSession(userId, session);
+    // 2. Update persistent PRs
+    await this.updatePersonalRecordsFromSession(userId, session);
 
-    // Clear active workout from storage
+    // 3. Clear active workout from storage ONLY after successful session persistence
     localDb.clearActiveWorkout(userId);
+
+    // 4. Trigger non-blocking cloud sync if cloud auth exists
+    workoutSyncService.triggerBackgroundSync();
 
     return {
       session,
-      updatedPRs
+      updatedPRs: newlyAchievedPRs
     };
+  },
+
+  /**
+   * Updates an existing completed workout session in history (e.g. notes, rating/feeling).
+   */
+  async updateWorkoutSession(
+    id: string,
+    userId: string,
+    updates: Partial<WorkoutSessionLog>
+  ): Promise<WorkoutSessionLog | null> {
+    try {
+      const session = await this.getWorkoutSessionById(id, userId);
+      if (!session) {
+        console.warn(`[WorkoutService] Session not found for update: ${id}`);
+        return null;
+      }
+
+      const updatedSession: WorkoutSessionLog = {
+        ...session,
+        ...updates,
+        id: session.id, // Immutable ID
+        user_id: session.user_id // Immutable user ID
+      };
+
+      localDb.saveWorkoutSession(updatedSession);
+      workoutSyncService.triggerBackgroundSync();
+      return updatedSession;
+    } catch (err) {
+      console.error('Failed to update workout session', err);
+      return null;
+    }
   },
 
   /**
@@ -813,5 +881,6 @@ export const workoutService = {
    */
   async deleteWorkoutSession(id: string, userId: string): Promise<void> {
     localDb.deleteWorkoutSession(id, userId);
+    workoutSyncService.triggerBackgroundSync();
   }
 };

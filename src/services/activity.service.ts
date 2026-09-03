@@ -2,6 +2,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { localDb } from '../lib/supabase';
 import { ActivityLog } from '../types';
+import { healthSyncService } from './cloud/healthSync.service';
 
 export const activityService = {
   async logActivity(
@@ -36,6 +37,7 @@ export const activityService = {
     }
 
     localDb.saveActivityLog(log);
+    healthSyncService.triggerBackgroundSync();
     return log;
   },
 
@@ -69,6 +71,7 @@ export const activityService = {
       }
     }
     localDb.deleteActivityLog(id, userId);
+    healthSyncService.triggerBackgroundSync();
   },
 
   getTodayActivity(logs: ActivityLog[], date?: string): { steps: number; activeMinutes: number; caloriesBurned: number } {

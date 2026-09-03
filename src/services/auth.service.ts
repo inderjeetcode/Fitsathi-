@@ -1,6 +1,7 @@
 import { localDb } from '../lib/supabase';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
+import { cloudAuthService, CloudAuthState, AuthMode, CloudAuthResult } from './cloud/cloudAuth.service';
 
 const defaultProfile = (id: string, email: string, fullName?: string): UserProfile => ({
   id,
@@ -89,6 +90,48 @@ async function getCloudProfile(id: string, email: string, metadata?: Record<stri
 }
 
 export const authService = {
+  // ==========================================
+  // CLOUD AUTHENTICATION BRIDGE (Milestone 7C)
+  // ==========================================
+  async getCloudAuthSession() {
+    return cloudAuthService.getCloudAuthSession();
+  },
+
+  async isCloudAuthenticated(): Promise<boolean> {
+    return cloudAuthService.isCloudAuthenticated();
+  },
+
+  async getCloudUserId(): Promise<string | null> {
+    return cloudAuthService.getCloudUserId();
+  },
+
+  async getCloudUserEmail(): Promise<string | null> {
+    return cloudAuthService.getCloudUserEmail();
+  },
+
+  async getAuthState(): Promise<CloudAuthState> {
+    return cloudAuthService.getAuthState();
+  },
+
+  subscribeToCloudAuth(callback: (state: CloudAuthState) => void): () => void {
+    return cloudAuthService.subscribeToCloudAuth(callback);
+  },
+
+  async signInWithSupabase(email: string, password: string): Promise<CloudAuthResult> {
+    return cloudAuthService.signInWithSupabase(email, password);
+  },
+
+  async signUpWithSupabase(email: string, password: string, metadata?: Record<string, unknown>): Promise<CloudAuthResult> {
+    return cloudAuthService.signUpWithSupabase(email, password, metadata);
+  },
+
+  async signOutFromCloud(): Promise<{ success: boolean; error?: string }> {
+    return cloudAuthService.signOutFromCloud();
+  },
+
+  // ==========================================
+  // CORE PROFILE & LOCAL AUTHENTICATION
+  // ==========================================
   async getCurrentUser(): Promise<UserProfile | null> {
     if (isSupabaseConfigured && supabase) {
       const { data: { session } } = await supabase.auth.getSession();

@@ -273,6 +273,8 @@ export interface WorkoutSessionLog {
   total_reps: number;
   pr_count: number;
   calories_burned?: number;
+  feeling?: string;
+  session_feeling?: string;
   exercises: RoutineExercise[];
   notes?: string;
   log_date: string; // 'YYYY-MM-DD'
@@ -300,3 +302,21 @@ export interface ActiveWorkoutState {
   isPaused: boolean;
   notes?: string;
 }
+
+export type HealthSyncEntity =
+  | 'diet_plans'
+  | 'meals'
+  | 'food_logs'
+  | 'water_logs'
+  | 'sleep_logs'
+  | 'weight_logs'
+  | 'activity_logs';
+
+export interface PendingDeletion {
+  id: string;
+  entity: HealthSyncEntity;
+  userId: string;
+  deletedAt: string;
+  retryCount?: number;
+}
+

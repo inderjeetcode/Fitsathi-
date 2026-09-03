@@ -4,26 +4,29 @@ import { UserProfile, FitnessGoal, ActivityLevel, FoodPreference } from '../type
 import { profileService } from '../services/profile.service';
 
 interface OnboardingPageProps {
-  initialUser: UserProfile;
+  initialUser?: UserProfile;
+  user?: UserProfile;
   onComplete: (user: UserProfile) => void;
 }
 
 export const OnboardingPage: React.FC<OnboardingPageProps> = ({
   initialUser,
+  user,
   onComplete
 }) => {
+  const activeUser = user || initialUser;
   const [step, setStep] = useState<number>(1);
   const totalSteps = 7;
 
-  // Form State
-  const [goal, setGoal] = useState<FitnessGoal>(initialUser.fitness_goal || 'weight_loss');
-  const [gender, setGender] = useState<'male' | 'female' | 'other'>(initialUser.gender || 'male');
-  const [age, setAge] = useState<number>(initialUser.age || 27);
-  const [heightCm, setHeightCm] = useState<number>(initialUser.height_cm || 175);
-  const [weightKg, setWeightKg] = useState<number>(initialUser.weight_kg || 78.5);
-  const [targetWeightKg, setTargetWeightKg] = useState<number>(initialUser.target_weight_kg || 70);
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(initialUser.activity_level || 'moderately_active');
-  const [dietPref, setDietPref] = useState<FoodPreference>(initialUser.food_preference || 'vegetarian');
+  // Form State with safe fallbacks
+  const [goal, setGoal] = useState<FitnessGoal>(activeUser?.fitness_goal || 'weight_loss');
+  const [gender, setGender] = useState<'male' | 'female' | 'other'>(activeUser?.gender || 'male');
+  const [age, setAge] = useState<number>(activeUser?.age || 27);
+  const [heightCm, setHeightCm] = useState<number>(activeUser?.height_cm || 175);
+  const [weightKg, setWeightKg] = useState<number>(activeUser?.weight_kg || 78.5);
+  const [targetWeightKg, setTargetWeightKg] = useState<number>(activeUser?.target_weight_kg || 70);
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(activeUser?.activity_level || 'moderately_active');
+  const [dietPref, setDietPref] = useState<FoodPreference>(activeUser?.food_preference || activeUser?.diet_preference || 'vegetarian');
 
   // Step 7: Calculated targets
   const targets = profileService.calculateTargets(
@@ -37,7 +40,11 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
 
   const handleFinish = async () => {
     const updatedProfile: UserProfile = {
-      ...initialUser,
+      ...(activeUser || {
+        id: 'user-' + Date.now(),
+        email: '',
+        full_name: 'Fitness Enthusiast'
+      }),
       fitness_goal: goal,
       gender,
       age,

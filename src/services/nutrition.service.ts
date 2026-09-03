@@ -2,6 +2,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { localDb } from '../lib/supabase';
 import { FoodLog, FoodItem, DailyNutritionSummary, MealType, UserProfile } from '../types';
+import { healthSyncService } from './cloud/healthSync.service';
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
@@ -84,6 +85,7 @@ export const nutritionService = {
     }
 
     localDb.saveFoodLog(newLog);
+    healthSyncService.triggerBackgroundSync();
     return newLog;
   },
 
@@ -96,6 +98,7 @@ export const nutritionService = {
       }
     }
     localDb.deleteFoodLog(id, userId);
+    healthSyncService.triggerBackgroundSync();
   },
 
   async getDailySummary(userId: string, user: UserProfile, date?: string): Promise<DailyNutritionSummary> {

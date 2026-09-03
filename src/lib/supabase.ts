@@ -1,3 +1,4 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
   UserProfile, 
   FoodItem, 
@@ -10,8 +11,33 @@ import {
   WorkoutRoutine,
   WorkoutSessionLog,
   PersonalRecord,
-  ActiveWorkoutState
+  ActiveWorkoutState,
+  PendingDeletion,
+  HealthSyncEntity
 } from '../types';
+
+// ==========================================
+// SUPABASE CLIENT INITIALIZATION (Client-Safe)
+// ==========================================
+const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
+const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || '';
+
+export const isSupabaseConfigured = Boolean(
+  supabaseUrl &&
+  supabaseAnonKey &&
+  !supabaseUrl.includes('YOUR_SUPABASE_URL') &&
+  !supabaseAnonKey.includes('YOUR_SUPABASE_ANON_KEY')
+);
+
+export const supabase: SupabaseClient | null = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    })
+  : null;
 
 // ==========================================
 // CLIENT-SIDE PERSISTENCE & CACHE ENGINE
@@ -741,11 +767,47 @@ export const localDb = {
     const list = getStorageItem<FoodItem[]>('custom_foods', []);
     setStorageItem('custom_foods', list.filter(f => f.id !== id));
   },
+  // ==========================================
+  // PENDING DELETIONS (Anti-Resurrection & Cloud Sync)
+  // ==========================================
+  getPendingDeletions: (userId?: string): PendingDeletion[] => {
+    const list = getStorageItem<PendingDeletion[]>('pending_deletions', []);
+    if (!userId) return list;
+    return list.filter(d => d.userId === userId || !d.userId);
+  },
+  addPendingDeletion: (deletion: PendingDeletion): void => {
+    const list = getStorageItem<PendingDeletion[]>('pending_deletions', []);
+    const existingIndex = list.findIndex(d => d.id === deletion.id && d.entity === deletion.entity);
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...deletion };
+    } else {
+      list.push(deletion);
+    }
+    setStorageItem('pending_deletions', list);
+  },
+  removePendingDeletion: (id: string, entity: HealthSyncEntity): void => {
+    const list = getStorageItem<PendingDeletion[]>('pending_deletions', []);
+    setStorageItem('pending_deletions', list.filter(d => !(d.id === id && d.entity === entity)));
+  },
+  isPendingDeletion: (id: string, entity: HealthSyncEntity): boolean => {
+    const list = getStorageItem<PendingDeletion[]>('pending_deletions', []);
+    return list.some(d => d.id === id && d.entity === entity);
+  },
+  clearPendingDeletions: (userId?: string): void => {
+    if (!userId) {
+      setStorageItem('pending_deletions', []);
+      return;
+    }
+    const list = getStorageItem<PendingDeletion[]>('pending_deletions', []);
+    setStorageItem('pending_deletions', list.filter(d => d.userId !== userId));
+  },
+
   getFoodLogs: (userId: string, date?: string): FoodLog[] => {
     const list = getStorageItem<FoodLog[]>('food_logs', []);
     return list.filter(l => l.user_id === userId && (!date || l.log_date === date));
   },
   saveFoodLog: (log: FoodLog): void => {
+    localDb.removePendingDeletion(log.id, 'food_logs');
     const list = getStorageItem<FoodLog[]>('food_logs', []);
     list.unshift(log);
     setStorageItem('food_logs', list);
@@ -753,12 +815,19 @@ export const localDb = {
   deleteFoodLog: (id: string, userId: string): void => {
     const list = getStorageItem<FoodLog[]>('food_logs', []);
     setStorageItem('food_logs', list.filter(l => !(l.id === id && l.user_id === userId)));
+    localDb.addPendingDeletion({
+      id,
+      entity: 'food_logs',
+      userId,
+      deletedAt: new Date().toISOString()
+    });
   },
   getWaterLogs: (userId: string, date?: string): WaterLog[] => {
     const list = getStorageItem<WaterLog[]>('water_logs', []);
     return list.filter(l => l.user_id === userId && (!date || l.log_date === date));
   },
   saveWaterLog: (log: WaterLog): void => {
+    localDb.removePendingDeletion(log.id, 'water_logs');
     const list = getStorageItem<WaterLog[]>('water_logs', []);
     list.push(log);
     setStorageItem('water_logs', list);
@@ -766,12 +835,19 @@ export const localDb = {
   deleteWaterLog: (id: string, userId: string): void => {
     const list = getStorageItem<WaterLog[]>('water_logs', []);
     setStorageItem('water_logs', list.filter(w => !(w.id === id && w.user_id === userId)));
+    localDb.addPendingDeletion({
+      id,
+      entity: 'water_logs',
+      userId,
+      deletedAt: new Date().toISOString()
+    });
   },
   getSleepLogs: (userId: string): SleepLog[] => {
     const list = getStorageItem<SleepLog[]>('sleep_logs', []);
     return list.filter(l => l.user_id === userId).sort((a, b) => b.log_date.localeCompare(a.log_date));
   },
   saveSleepLog: (log: SleepLog): void => {
+    localDb.removePendingDeletion(log.id, 'sleep_logs');
     const list = getStorageItem<SleepLog[]>('sleep_logs', []);
     const existingIndex = list.findIndex(s => s.user_id === log.user_id && s.log_date === log.log_date);
     if (existingIndex >= 0) {
@@ -784,12 +860,19 @@ export const localDb = {
   deleteSleepLog: (id: string, userId: string): void => {
     const list = getStorageItem<SleepLog[]>('sleep_logs', []);
     setStorageItem('sleep_logs', list.filter(s => !(s.id === id && s.user_id === userId)));
+    localDb.addPendingDeletion({
+      id,
+      entity: 'sleep_logs',
+      userId,
+      deletedAt: new Date().toISOString()
+    });
   },
   getActivityLogs: (userId: string): ActivityLog[] => {
     const list = getStorageItem<ActivityLog[]>('activity_logs', []);
     return list.filter(l => l.user_id === userId).sort((a, b) => b.log_date.localeCompare(a.log_date));
   },
   saveActivityLog: (log: ActivityLog): void => {
+    localDb.removePendingDeletion(log.id, 'activity_logs');
     const list = getStorageItem<ActivityLog[]>('activity_logs', []);
     const existingIndex = list.findIndex(a => a.user_id === log.user_id && a.log_date === log.log_date);
     if (existingIndex >= 0) {
@@ -807,12 +890,19 @@ export const localDb = {
   deleteActivityLog: (id: string, userId: string): void => {
     const list = getStorageItem<ActivityLog[]>('activity_logs', []);
     setStorageItem('activity_logs', list.filter(a => !(a.id === id && a.user_id === userId)));
+    localDb.addPendingDeletion({
+      id,
+      entity: 'activity_logs',
+      userId,
+      deletedAt: new Date().toISOString()
+    });
   },
   getWeightLogs: (userId: string): WeightLog[] => {
     const list = getStorageItem<WeightLog[]>('weight_logs', []);
     return list.filter(l => l.user_id === userId).sort((a, b) => a.log_date.localeCompare(b.log_date));
   },
   saveWeightLog: (log: WeightLog): void => {
+    localDb.removePendingDeletion(log.id, 'weight_logs');
     const list = getStorageItem<WeightLog[]>('weight_logs', []);
     const existingIndex = list.findIndex(w => w.user_id === log.user_id && w.log_date === log.log_date);
     if (existingIndex >= 0) {
@@ -825,12 +915,19 @@ export const localDb = {
   deleteWeightLog: (id: string, userId: string): void => {
     const list = getStorageItem<WeightLog[]>('weight_logs', []);
     setStorageItem('weight_logs', list.filter(w => !(w.id === id && w.user_id === userId)));
+    localDb.addPendingDeletion({
+      id,
+      entity: 'weight_logs',
+      userId,
+      deletedAt: new Date().toISOString()
+    });
   },
   getDietPlans: (userId: string): DietPlan[] => {
     const list = getStorageItem<DietPlan[]>('diet_plans', []);
     return list.filter(d => d.user_id === userId);
   },
   saveDietPlan: (plan: DietPlan): void => {
+    localDb.removePendingDeletion(plan.id, 'diet_plans');
     const list = getStorageItem<DietPlan[]>('diet_plans', []);
     const existingIndex = list.findIndex(d => d.id === plan.id);
     if (existingIndex >= 0) {
@@ -843,6 +940,12 @@ export const localDb = {
   deleteDietPlan: (id: string, userId: string): void => {
     const list = getStorageItem<DietPlan[]>('diet_plans', []);
     setStorageItem('diet_plans', list.filter(d => !(d.id === id && d.user_id === userId)));
+    localDb.addPendingDeletion({
+      id,
+      entity: 'diet_plans',
+      userId,
+      deletedAt: new Date().toISOString()
+    });
   },
 
   // ==========================================

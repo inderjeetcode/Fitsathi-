@@ -2,6 +2,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { localDb } from '../lib/supabase';
 import { DietPlan, DietPlanMeal } from '../types';
+import { healthSyncService } from './cloud/healthSync.service';
 
 export const dietService = {
   async getDietPlans(userId: string): Promise<DietPlan[]> {
@@ -42,6 +43,7 @@ export const dietService = {
     }
 
     localDb.saveDietPlan(newPlan);
+    healthSyncService.triggerBackgroundSync();
     return newPlan;
   },
 
@@ -55,6 +57,7 @@ export const dietService = {
     }
 
     localDb.saveDietPlan(plan);
+    healthSyncService.triggerBackgroundSync();
     return plan;
   },
 
@@ -67,6 +70,7 @@ export const dietService = {
       }
     }
     localDb.deleteDietPlan(id, userId);
+    healthSyncService.triggerBackgroundSync();
   },
 
   calculatePlanTotals(meals: DietPlanMeal[]) {
